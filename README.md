@@ -15,6 +15,7 @@ Punch to gain **Power** 💪 and **Coins** 🪙 → buy gear that multiplies you
 - **Global top-10 current-Power leaderboard** on a physical board (OrderedDataStore)
 - **Daily boost rewards**: 7-day streak with temporary 2x Training, 2x Damage, and 2x Coins boosts; persistent cooldowns and expiries
 - **Combat**: server-validated Training Dummy with health, attack cooldown, and temporary damage boosts
+- **Custom Admin**: server-side role permissions, command panel, moderation via Roblox ban API, economy grants, timed server events, announcements, and in-memory audit log
 - **Monetization**: 4 gamepasses (2x Power, 2x Coins, Auto Train, VIP Island) + 3 coin-pack developer products
 - **Server-authoritative everywhere**: punch rate limiting, zone bonuses validated against real position + power, all purchases granted server-side
 
@@ -24,6 +25,7 @@ Punch to gain **Power** 💪 and **Coins** 🪙 → buy gear that multiplies you
 src/
 ├── shared/            # replicated to both sides
 │   ├── Config.luau    # every tunable number: balance, zones, gear, product IDs
+│   └── AdminConfig.luau # owner allowlist, staff roles, permissions
 │   └── Formulas.luau  # pure math shared by server (authority) and client (display)
 ├── server/
 │   ├── init.server.luau      # entry: creates remotes, wires services (explicit DI)
@@ -31,6 +33,9 @@ src/
 │   ├── Training.luau         # punch loop, rate limiting, zone validation, Auto Train
 │   ├── Combat.luau           # server-authoritative Training Dummy combat
 │   ├── DailyRewards.luau     # persistent daily boost streaks
+│   ├── Admin.luau            # server-side admin command router + audit log
+│   ├── AdminEvents.luau      # temporary server-wide event multipliers
+│   ├── AdminModeration.luau # Roblox kick/ban/unban wrapper
 │   ├── Shop.luau             # gear purchases + rebirths (server-validated)
 │   ├── Monetization.luau     # gamepass cache + ProcessReceipt
 │   ├── MapBuilder.luau       # builds the entire world from Config
@@ -59,6 +64,17 @@ src/
 For live-sync development instead: `rojo plugin install` once, then `rojo serve` and connect from Studio's Rojo plugin.
 
 > DataStores and gamepasses are silently disabled in unpublished local playtests — the game detects this and runs with in-memory data.
+
+## Enabling the custom admin system
+
+1. Open [AdminConfig.luau](src/shared/AdminConfig.luau).
+2. Add the experience owner's numeric Roblox UserId to `OwnerUserIds`.
+3. Add optional staff UserIds to `Staff` with one of `HeadAdmin`, `Admin`, or `Moderator`.
+4. In Roblox Studio, enable `Players.BanningEnabled` in the Players service properties if you want the ban/unban commands. Kick and the other admin features do not require this setting.
+
+The admin panel is hidden from ordinary players. Every command is permission-checked by the server. Event boosts apply to the current server only, expire automatically, and do not alter saved player boost data. Audit entries are held in the server's memory and reset when that server closes.
+
+Commands: `help`, `players`, `event start <preset> <minutes>`, `event stop`, `announce <message>`, `kick <player> <reason>`, `ban <player> <minutes> <reason>`, `unban <userId>`, `givepower <player> <amount>`, `givecoins <player> <amount>`, `tp <player>`.
 
 ## Enabling monetization
 
