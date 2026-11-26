@@ -19,6 +19,32 @@ local function makeLabel(parent, text, position, size, color)
 end
 
 function AdminUi.build()
+	local noticeGui = UI.create("ScreenGui", {
+		Name = "AdminNotices", ResetOnSpawn = false, DisplayOrder = 30,
+		Parent = player:WaitForChild("PlayerGui"),
+	})
+	local notice = UI.create("TextLabel", {
+		AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 64),
+		Size = UDim2.fromOffset(420, 48), BackgroundColor3 = UI.Palette.panel,
+		TextColor3 = UI.Palette.text, Font = Enum.Font.FredokaOne, TextScaled = true,
+		Visible = false, Parent = noticeGui,
+	}, { UI.corner(10), UI.stroke(UI.Palette.accent, 2) })
+	local function showNotice(value)
+		notice.Text = tostring(value)
+		notice.Visible = true
+		task.delay(5, function()
+			if notice.Parent and notice.Text == tostring(value) then notice.Visible = false end
+		end)
+	end
+	player:GetAttributeChangedSignal("AdminAnnouncement"):Connect(function()
+		local value = player:GetAttribute("AdminAnnouncement")
+		if type(value) == "string" and value ~= "" then showNotice(value) end
+	end)
+	player:GetAttributeChangedSignal("AdminEventNotice"):Connect(function()
+		local value = player:GetAttribute("AdminEventNotice")
+		if type(value) == "string" and value ~= "" then showNotice(value) end
+	end)
+
 	local content = UI.window("Admin", "ADMIN CONTROL", UDim2.fromOffset(540, 440))
 	makeLabel(content, "Server administration • Commands are checked by the server.", UDim2.fromOffset(4, 0), UDim2.new(1, -8, 0, 28), UI.Palette.subtext)
 
