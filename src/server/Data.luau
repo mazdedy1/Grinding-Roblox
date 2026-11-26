@@ -27,6 +27,7 @@ local Data = {}
 local profiles = {}
 local sessionTokens = {}
 local ephemeralProfiles = {}
+local profileWriteLocks = {}
 local store = nil
 local memoryOnly = false
 
@@ -64,6 +65,17 @@ local function normalize(data)
 	data.rebirths = math.floor(data.rebirths)
 	data.gearLevel = math.clamp(math.floor(data.gearLevel), 0, 100)
 	return data
+end
+
+local function acquireProfileWrite(player: Player)
+	while profileWriteLocks[player] do
+		task.wait()
+	end
+	profileWriteLocks[player] = true
+end
+
+local function releaseProfileWrite(player: Player)
+	profileWriteLocks[player] = nil
 end
 
 local function sync(player: Player)
@@ -151,6 +163,7 @@ local function saveProfile(player: Player, releaseSession: boolean?)
 		return false
 	end
 
+	acquireProfileWrite(player)
 	local snapshot = deepCopy(profile)
 	local ok, result = pcall(function()
 		return store:UpdateAsync(keyFor(player), function(current)
@@ -162,6 +175,7 @@ local function saveProfile(player: Player, releaseSession: boolean?)
 			return snapshot
 		end)
 	end)
+	releaseProfileWrite(player)
 
 	if not ok or type(result) ~= "table" then
 		warn(`[Data] Save/lock renewal failed for {player.Name}: {result}`)
@@ -239,11 +253,24 @@ function Data.grantProductReceipt(player: Player, purchaseId: string, amount: nu
 		return true
 	end
 
+	acquireProfileWrite(player)
+	profile = profiles[player]
+	if not profile then
+		releaseProfileWrite(player)
+		return false
+	end
+	if profile.receiptIds[purchaseId] then
+		releaseProfileWrite(player)
+		return true
+	end
+
 	local token = sessionTokens[player]
 	if not token then
+		releaseProfileWrite(player)
 		return false
 	end
 
+	local appliedByThisCall = false
 	local ok, updated = pcall(function()
 		return store:UpdateAsync(keyFor(player), function(current)
 			if type(current) ~= "table" or current._sessionId ~= token then
@@ -251,6 +278,7 @@ function Data.grantProductReceipt(player: Player, purchaseId: string, amount: nu
 			end
 			current = normalize(current)
 			if not current.receiptIds[purchaseId] then
+				appliedByThisCall = true
 				current.receiptIds[purchaseId] = true
 				local total = (current.coinRemainder or 0) + amount
 				local wholeCoins = math.floor(total)
@@ -261,14 +289,17 @@ function Data.grantProductReceipt(player: Player, purchaseId: string, amount: nu
 			return current
 		end)
 	end)
+	releaseProfileWrite(player)
 
 	if not ok or type(updated) ~= "table" or updated._sessionId ~= token then
 		warn(`[Data] Could not persist receipt {purchaseId} for {player.Name}: {updated}`)
 		return false
 	end
 
-	profiles[player] = normalize(updated)
-	sync(player)
+	if appliedByThisCall then
+		profile.receiptIds[purchaseId] = true
+		Data.addCoins(player, amount)
+	end
 	return true
 end
 
@@ -327,6 +358,7 @@ function Data.start()
 		profiles[player] = nil
 		sessionTokens[player] = nil
 		ephemeralProfiles[player] = nil
+		profileWriteLocks[player] = nil
 	end)
 
 	game:BindToClose(function()
