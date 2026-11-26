@@ -11,8 +11,8 @@ Punch to gain **Power** 💪 and **Coins** 🪙 → buy gear that multiplies you
 - **4 unlockable zones + a VIP island**, procedurally built by [MapBuilder](src/server/MapBuilder.luau) from [Config](src/shared/Config.luau)
 - **6 gear tiers** (Foam Gloves → Void Knuckles, up to x200)
 - **Rebirth system** with exponential cost scaling and permanent bonuses
-- **Persistent data** (DataStore with retries, autosave, and graceful Studio fallback)
-- **Global top-10 leaderboard** on a physical board (OrderedDataStore)
+- **Persistent data** (DataStore retries, session locking, guarded loading, autosave, and temporary Studio fallback)
+- **Global top-10 peak-Power leaderboard** on a physical board (OrderedDataStore)
 - **Monetization**: 4 gamepasses (2x Power, 2x Coins, Auto Train, VIP Island) + 3 coin-pack developer products
 - **Server-authoritative everywhere**: punch rate limiting, zone bonuses validated against real position + power, all purchases granted server-side
 
@@ -71,7 +71,6 @@ Items with an ID of `0` are hidden from the shop automatically, so the game is f
 
 - [ ] Pets: hatch from eggs, equip for multipliers (the big retention + monetization system)
 - [ ] Daily rewards + playtime prizes
-- [ ] Robust receipt dedupe via DataStore-backed purchase history
 - [ ] Trails/aura cosmetics for big rebirth milestones
 - [ ] Quests ("punch 1,000 times in the Volcano")
 - [ ] Publish via Open Cloud from CI (push-to-deploy)
