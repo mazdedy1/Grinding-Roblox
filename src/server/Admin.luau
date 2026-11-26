@@ -69,6 +69,7 @@ local function execute(player: Player, raw: string)
 
 	local command = string.match(raw, "^%s*(.-)%s*$") or ""
 	if command == "" then return end
+	command = string.gsub(command, "%s+", " ")
 	local parts = string.split(command, " ")
 	local verb = string.lower(parts[1] or "")
 	local requiredPermission = ({
