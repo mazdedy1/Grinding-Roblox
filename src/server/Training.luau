@@ -56,8 +56,11 @@ local function punch(player: Player, bypassCooldown: boolean?)
 		rebirths = profile.rebirths,
 		zoneMultiplier = zoneMultiplierFor(player, profile),
 		hasDoublePower = Monetization.ownsPass(player, "DoublePower"),
+		hasDoubleTraining = Data.hasActiveBoost(player, "DoubleTraining"),
 	})
-	local coinsGain = Formulas.coinsForPower(powerGain, Monetization.ownsPass(player, "DoubleCoins"))
+	local coinsGain = Formulas.coinsForPower(powerGain,
+		Monetization.ownsPass(player, "DoubleCoins") or Data.hasActiveBoost(player, "DoubleCoins")
+	)
 
 	Data.addPower(player, powerGain)
 	Data.addCoins(player, coinsGain)
