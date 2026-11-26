@@ -1,6 +1,5 @@
 -- Monetization.luau
--- Gamepass ownership (cached per player, exposed as attributes for the UI)
--- and developer product receipt processing. All grants happen server-side.
+-- Gamepass ownership cache and durable, idempotent Developer Product grants.
 
 local MarketplaceService = game:GetService("MarketplaceService")
 local Players = game:GetService("Players")
@@ -9,42 +8,50 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage.Shared.Config)
 
 local Monetization = {}
-
-local ownership = {} -- [Player] = { [passKey] = boolean }
-local handledReceipts = {} -- [PurchaseId] = true, session-level dedupe
+local ownership = {}
 local Data
 
 local function refreshPasses(player: Player)
-	local owned = {}
-	for key, passId in Config.GamePasses do
-		local owns = false
-		if passId ~= 0 then
-			local ok, result = pcall(function()
-				return MarketplaceService:UserOwnsGamePassAsync(player.UserId, passId)
-			end)
-			owns = ok and result == true
-		end
-		owned[key] = owns
-		player:SetAttribute("Owns" .. key, owns)
-	end
+	local owned = ownership[player] or {}
 	ownership[player] = owned
+
+	for key, passId in Config.GamePasses do
+		if passId == 0 then
+			owned[key] = false
+			player:SetAttribute("Owns" .. key, false)
+		else
+			-- A transient API failure is not proof that the player does not own it.
+			for attempt = 1, 3 do
+				local ok, result = pcall(function()
+					return MarketplaceService:UserOwnsGamePassAsync(player.UserId, passId)
+				end)
+				if ok then
+					owned[key] = result == true
+					player:SetAttribute("Owns" .. key, owned[key])
+					break
+				end
+				warn(`[Monetization] Gamepass check failed ({key}, attempt {attempt}): {result}`)
+				task.wait(attempt * 2)
+			end
+		end
+	end
 end
 
 local function processReceipt(receiptInfo)
-	if handledReceipts[receiptInfo.PurchaseId] then
-		return Enum.ProductPurchaseDecision.PurchaseGranted
-	end
-
 	local player = Players:GetPlayerByUserId(receiptInfo.PlayerId)
 	if not player or not Data.get(player) then
-		-- Player left or their data hasn't loaded; Roblox will retry later.
 		return Enum.ProductPurchaseDecision.NotProcessedYet
 	end
 
 	for _, product in Config.DevProducts do
-		if product.id == receiptInfo.ProductId then
-			Data.addCoins(player, product.coins)
-			handledReceipts[receiptInfo.PurchaseId] = true
+		if product.id ~= 0 and product.id == receiptInfo.ProductId then
+			local granted = Data.grantProductReceipt(player, tostring(receiptInfo.PurchaseId), product.coins)
+			if not granted then
+				-- Roblox retries this receipt. Never acknowledge a grant that
+				-- has not been durably recorded with the player's profile.
+				return Enum.ProductPurchaseDecision.NotProcessedYet
+			end
+
 			local notify = ReplicatedStorage.Remotes:FindFirstChild("Notify")
 			if notify then
 				notify:FireClient(player, "success", `Purchased {product.label}!`)
@@ -56,8 +63,6 @@ local function processReceipt(receiptInfo)
 	warn(`[Monetization] Receipt for unknown product id {receiptInfo.ProductId}`)
 	return Enum.ProductPurchaseDecision.NotProcessedYet
 end
-
--- ============================== PUBLIC API ==============================
 
 function Monetization.ownsPass(player: Player, passKey: string): boolean
 	local owned = ownership[player]
@@ -77,21 +82,21 @@ function Monetization.start(dataService)
 		ownership[player] = nil
 	end)
 
-	-- Update the cache instantly when a pass is bought in-game.
 	MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, passId, purchased)
 		if not purchased then
 			return
 		end
 		for key, id in Config.GamePasses do
-			if id == passId then
+			if id == passId and id ~= 0 then
 				local owned = ownership[player]
 				if owned then
 					owned[key] = true
 				end
 				player:SetAttribute("Owns" .. key, true)
+				local info = Config.GamePassInfo[key]
 				local notify = ReplicatedStorage.Remotes:FindFirstChild("Notify")
-				if notify then
-					notify:FireClient(player, "success", `{Config.GamePassInfo[key].title} unlocked!`)
+				if notify and info then
+					notify:FireClient(player, "success", `{info.title} unlocked!`)
 				end
 			end
 		end
