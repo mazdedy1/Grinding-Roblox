@@ -31,6 +31,19 @@ function Formulas.powerPerPunch(state): number
 	return math.clamp(math.floor(amount + 0.5), 1, 9_000_000_000_000_000)
 end
 
+function Formulas.damagePerHit(state): number
+	local amount = Config.Combat.BaseDamage
+		* Formulas.gearMultiplier(state.gearLevel)
+		* Formulas.rebirthMultiplier(state.rebirths)
+	if state.hasDoubleDamage then
+		amount *= 2
+	end
+	if amount ~= amount or amount == math.huge then
+		return 9_000_000_000_000_000
+	end
+	return math.clamp(math.floor(amount + 0.5), 1, 9_000_000_000_000_000)
+end
+
 function Formulas.coinsForPower(powerGained: number, hasDoubleCoins: boolean?): number
 	local coins = powerGained * Config.Training.CoinsPerPowerGained
 	if hasDoubleCoins then
