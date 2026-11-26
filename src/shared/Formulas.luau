@@ -22,7 +22,7 @@ function Formulas.powerPerPunch(state): number
 		* Formulas.gearMultiplier(state.gearLevel)
 		* Formulas.rebirthMultiplier(state.rebirths)
 		* (state.zoneMultiplier or 1)
-	if state.hasDoublePower then
+	if state.hasDoublePower or state.hasDoubleTraining then
 		amount *= 2
 	end
 	if amount ~= amount or amount == math.huge then
