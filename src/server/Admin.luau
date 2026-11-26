@@ -1,32 +1,44 @@
 -- Admin.luau
--- Server-authoritative custom admin command router, permission checks and audit log.
+-- Server-authoritative tier access, command router, and in-memory audit log.
+-- Developer IDs are intentionally hardcoded in this server-only script.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.AdminConfig)
 local AdminEvents = require(script.Parent.AdminEvents)
 local Moderation = require(script.Parent.AdminModeration)
+local AdminRoles = require(script.Parent.AdminRoles)
+local StreamerNametag = require(script.Parent.StreamerNametag)
 
 local Admin = {}
 local Data
 local remote
 local logs = {}
 local lastCommand = {}
+local rolesByUserId = {}
+
+local DEVELOPER_USER_IDS = {
+	[10522335269] = true, -- rajabarongz (provided Roblox account screenshot)
+}
 
 local function roleFor(player: Player): string?
-	for _, userId in Config.OwnerUserIds do
-		if player.UserId == userId then return "Owner" end
+	if DEVELOPER_USER_IDS[player.UserId] then
+		return "Developer"
 	end
-	return Config.Staff[player.UserId]
-end
-
-local function levelFor(role: string?): number
-	return role and (Config.Roles[role] or 0) or 0
+	return rolesByUserId[player.UserId]
 end
 
 local function hasPermission(player: Player, permission: string): boolean
 	local role = roleFor(player)
-	return role ~= nil and levelFor(role) >= (Config.Permissions[permission] or math.huge)
+	local allowed = Config.Permissions[permission]
+	return role ~= nil and type(allowed) == "table" and allowed[role] == true
+end
+
+local function setPlayerRole(player: Player, role: string?)
+	rolesByUserId[player.UserId] = role
+	player:SetAttribute("AdminRole", role or "")
+	player:SetAttribute("IsAdmin", role == "Developer" or role == "Admin")
+	StreamerNametag.apply(player, role)
 end
 
 local function log(actor: Player, command: string, result: string)
@@ -62,7 +74,7 @@ end
 local function execute(player: Player, raw: string)
 	if type(raw) ~= "string" or #raw > 300 then return end
 	local role = roleFor(player)
-	if not role then return end
+	if role ~= "Developer" and role ~= "Admin" then return end
 	local now = os.clock()
 	if now - (lastCommand[player] or 0) < 0.35 then return end
 	lastCommand[player] = now
@@ -78,25 +90,25 @@ local function execute(player: Player, raw: string)
 		announce = "announce",
 		kick = "moderation", ban = "moderation", unban = "moderation",
 		givepower = "economy", givecoins = "economy",
+		grantrole = "roles", revokerole = "roles",
 	})[verb]
 	if requiredPermission and not hasPermission(player, requiredPermission) then
 		log(player, command, "Permission denied.")
-		reply(player, "Your role cannot use this command.", false)
+		reply(player, "Your tier cannot use this command.", false)
 		return
 	end
-	local ok, message = false, "Unknown command."
-	local permission = nil
 
+	local ok, message = false, "Unknown command."
 	if verb == "help" then
 		ok = true
-		message = "Commands: players | event start <preset> <minutes> | event stop | boost all <training|coins|damage> <1x-5x> <minutes> | boost stop | announce <message> | kick <player> <reason> | ban <player> <minutes> <reason> | unban <userId> | givepower/givecoins <player> <amount> | tp <player>"
+		message = if role == "Developer"
+			then "Commands: players | event start <preset> <minutes> | event stop | boost all <training|coins|damage> <1x-5x> <minutes> | boost stop | announce <message> | kick/ban/unban | givepower/givecoins | grantrole <userId> <admin|streamer> | revokerole <userId> | tp <player>"
+			else "Commands: players | event start <preset> <minutes> | event stop | boost all <training|coins|damage> <1x-5x> <minutes> | boost stop | announce <message> | kick/ban/unban | tp <player>"
 	elseif verb == "players" then
-		permission = "players"
 		local names = {}
-		for _, target in Players:GetPlayers() do table.insert(names, target.Name) end
+		for _, target in Players:GetPlayers() do table.insert(names, target.Name .. " [" .. tostring(roleFor(target) or "Player") .. "]") end
 		ok, message = true, "Online: " .. table.concat(names, ", ")
 	elseif verb == "event" then
-		permission = "events"
 		if string.lower(parts[2] or "") == "stop" then
 			ok, message = AdminEvents.stop("Admin ended the event.")
 		elseif string.lower(parts[2] or "") == "start" then
@@ -104,57 +116,41 @@ local function execute(player: Player, raw: string)
 			local minutes = tonumber(string.match(durationText, "^(%d+)m$")) or tonumber(durationText)
 			if minutes and minutes % 1 == 0 and minutes >= 1 and minutes <= Config.MaxEventMinutes then
 				ok, message = AdminEvents.start(parts[3] or "", minutes * 60)
-			else
-				message = "Usage: event start <preset> <minutes 1-60>"
-			end
-		else
-			message = "Usage: event start <preset> <minutes> OR event stop"
-		end
+			else message = "Usage: event start <preset> <minutes 1-60>" end
+		else message = "Usage: event start <preset> <minutes> OR event stop" end
 	elseif verb == "boost" then
-		permission = "events"
 		if string.lower(parts[2] or "") == "stop" then
 			ok, message = AdminEvents.stop("Admin ended the boost event.")
 		elseif string.lower(parts[2] or "") == "all" then
 			local kind = string.lower(parts[3] or "")
-			local multiplierText = string.lower(parts[4] or "")
-			local multiplier = tonumber(string.gsub(multiplierText, "x", ""))
+			local multiplier = tonumber(string.gsub(string.lower(parts[4] or ""), "x", ""))
 			local durationText = string.lower(parts[5] or "")
 			local minutes = tonumber(string.match(durationText, "^(%d+)m$")) or tonumber(durationText)
 			if (kind == "training" or kind == "coins" or kind == "damage")
 				and multiplier and multiplier % 1 == 0 and multiplier >= 1 and multiplier <= 5
 				and minutes and minutes % 1 == 0 and minutes >= 1 and minutes <= Config.MaxEventMinutes then
-				local training = if kind == "training" then multiplier else 1
-				local coins = if kind == "coins" then multiplier else 1
-				local damage = if kind == "damage" then multiplier else 1
-				ok, message = AdminEvents.startCustom(string.upper(kind) .. " BOOST", training, coins, damage, minutes * 60)
-			else
-				message = "Usage: boost all <training|coins|damage> <1x-5x> <minutes>"
-			end
-		else
-			message = "Usage: boost all <training|coins|damage> <1x-5x> <minutes> OR boost stop"
-		end
+				ok, message = AdminEvents.startCustom(string.upper(kind) .. " BOOST",
+					if kind == "training" then multiplier else 1,
+					if kind == "coins" then multiplier else 1,
+					if kind == "damage" then multiplier else 1,
+					minutes * 60)
+			else message = "Usage: boost all <training|coins|damage> <1x-5x> <minutes>" end
+		else message = "Usage: boost all <training|coins|damage> <1x-5x> <minutes> OR boost stop" end
 	elseif verb == "announce" then
-		permission = "announce"
 		local announcement = string.sub(command, 10, 300)
 		if announcement ~= "" then
-			for _, target in Players:GetPlayers() do
-				target:SetAttribute("AdminAnnouncement", announcement)
-			end
+			for _, target in Players:GetPlayers() do target:SetAttribute("AdminAnnouncement", announcement) end
 			ok, message = true, "Announcement sent."
 		else message = "Usage: announce <message>" end
 	elseif verb == "kick" or verb == "ban" then
-		permission = "moderation"
 		local target = findPlayer(parts[2] or "")
 		local reasonStart = if verb == "ban" then 4 else 3
 		local reason = table.concat(parts, " ", reasonStart)
-		if not target then
-			message = "Player not found. Target must be online."
-		elseif target == player then
-			message = "You cannot moderate yourself."
-		elseif levelFor(roleFor(target)) >= levelFor(role) then
-			message = "You cannot moderate an equal or higher role."
-		elseif verb == "kick" then
-			ok, message = Moderation.kick(target, reason)
+		if not target then message = "Player not found. Target must be online."
+		elseif target == player then message = "You cannot moderate yourself."
+		elseif (roleFor(target) == "Developer") or (roleFor(target) == "Admin" and role == "Admin") then
+			message = "You cannot moderate an equal or higher tier."
+		elseif verb == "kick" then ok, message = Moderation.kick(target, reason)
 		else
 			local minutes = tonumber(parts[3])
 			if minutes and minutes % 1 == 0 and minutes >= 1 and minutes <= 525600 then
@@ -162,13 +158,10 @@ local function execute(player: Player, raw: string)
 			else message = "Usage: ban <player> <minutes> <reason>" end
 		end
 	elseif verb == "unban" then
-		permission = "moderation"
 		local userId = tonumber(parts[2])
-		if userId and userId > 0 and userId % 1 == 0 then
-			ok, message = Moderation.unban(userId)
+		if userId and userId > 0 and userId % 1 == 0 then ok, message = Moderation.unban(userId)
 		else message = "Usage: unban <numericUserId>" end
 	elseif verb == "givepower" or verb == "givecoins" then
-		permission = "economy"
 		local target = findPlayer(parts[2] or "")
 		local amount = tonumber(parts[3])
 		if not target then message = "Player not found."
@@ -179,7 +172,6 @@ local function execute(player: Player, raw: string)
 			message = if ok then "Granted " .. tostring(amount) .. " to " .. target.Name .. "." else "Could not update player data."
 		end
 	elseif verb == "tp" then
-		permission = "players"
 		local target = findPlayer(parts[2] or "")
 		local character = player.Character
 		local targetRoot = target and target.Character and target.Character:FindFirstChild("HumanoidRootPart")
@@ -188,6 +180,34 @@ local function execute(player: Player, raw: string)
 			root.CFrame = targetRoot.CFrame * CFrame.new(3, 0, 0)
 			ok, message = true, "Teleported to " .. target.Name .. "."
 		else message = "Target or your character is unavailable." end
+	elseif verb == "grantrole" then
+		local userId = tonumber(parts[2])
+		local requestedRole = string.lower(parts[3] or "")
+		local tier = if requestedRole == "admin" then "Admin" elseif requestedRole == "streamer" or requestedRole == "creator" then "Streamer" else nil
+		if not userId or userId < 1 or userId % 1 ~= 0 or not tier then
+			message = "Usage: grantrole <numericUserId> <admin|streamer>"
+		elseif DEVELOPER_USER_IDS[userId] then
+			message = "Developer tier is hardcoded and cannot be overwritten."
+		else
+			ok, message = AdminRoles.setRole(userId, tier, player.UserId)
+			if ok then
+				local target = Players:GetPlayerByUserId(userId)
+				if target then setPlayerRole(target, tier) end
+			end
+		end
+	elseif verb == "revokerole" then
+		local userId = tonumber(parts[2])
+		if not userId or userId < 1 or userId % 1 ~= 0 then
+			message = "Usage: revokerole <numericUserId>"
+		elseif DEVELOPER_USER_IDS[userId] then
+			message = "Developer tier cannot be revoked through DataStore."
+		else
+			ok, message = AdminRoles.removeRole(userId)
+			if ok then
+				local target = Players:GetPlayerByUserId(userId)
+				if target then setPlayerRole(target, nil) end
+			end
+		end
 	end
 
 	log(player, command, message)
@@ -201,24 +221,27 @@ function Admin.start(dataService)
 	AdminEvents.startService()
 
 	local function setup(player: Player)
-		local role = roleFor(player)
-		player:SetAttribute("IsAdmin", role ~= nil)
-		player:SetAttribute("AdminRole", role or "")
+		local role = if DEVELOPER_USER_IDS[player.UserId] then "Developer" else AdminRoles.getRole(player.UserId)
+		setPlayerRole(player, role)
+		player.CharacterAdded:Connect(function()
+			task.wait(0.25)
+			StreamerNametag.apply(player, roleFor(player))
+		end)
 	end
-	Players.PlayerAdded:Connect(setup)
-	for _, player in Players:GetPlayers() do setup(player) end
+	Players.PlayerAdded:Connect(function(player) task.spawn(setup, player) end)
+	for _, player in Players:GetPlayers() do task.spawn(setup, player) end
 
 	remote.OnServerEvent:Connect(function(player, action, payload)
 		if type(action) ~= "string" then return end
 		if action == "command" then
 			execute(player, payload)
-		elseif action == "state" and roleFor(player) then
+		elseif action == "state" and (roleFor(player) == "Developer" or roleFor(player) == "Admin") then
 			remote:FireClient(player, "state", {
 				role = roleFor(player),
 				players = (function()
 					local list = {}
 					for _, target in Players:GetPlayers() do
-						table.insert(list, { name = target.Name, displayName = target.DisplayName, userId = target.UserId })
+						table.insert(list, { name = target.Name, displayName = target.DisplayName, userId = target.UserId, role = roleFor(target) or "Player" })
 					end
 					return list
 				end)(),
@@ -230,6 +253,7 @@ function Admin.start(dataService)
 
 	Players.PlayerRemoving:Connect(function(player)
 		lastCommand[player] = nil
+		rolesByUserId[player.UserId] = nil
 	end)
 end
 
