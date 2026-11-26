@@ -56,6 +56,34 @@ function AdminEvents.start(name: string, durationSeconds: number)
 	return true, preset.name .. " started for " .. math.floor(durationSeconds / 60) .. " minute(s)."
 end
 
+function AdminEvents.startCustom(label: string, training: number, coins: number, damage: number, durationSeconds: number)
+	for _, multiplier in { training, coins, damage } do
+		if type(multiplier) ~= "number" or multiplier < 1 or multiplier > 5 or multiplier % 1 ~= 0 then
+			return false, "Multipliers must be whole numbers from 1x to 5x."
+		end
+	end
+	if type(durationSeconds) ~= "number" or durationSeconds < 60 or durationSeconds > 3600 then
+		return false, "Event duration must be 1-60 minutes."
+	end
+	eventToken += 1
+	local token = eventToken
+	activeEvent = {
+		name = string.sub(label, 1, 32),
+		training = training,
+		coins = coins,
+		damage = damage,
+		endsAt = os.time() + math.floor(durationSeconds),
+	}
+	for _, player in Players:GetPlayers() do apply(player) end
+	broadcast(activeEvent.name .. " started!")
+	task.delay(durationSeconds, function()
+		if eventToken == token and activeEvent then
+			AdminEvents.stop("Event duration ended.")
+		end
+	end)
+	return true, activeEvent.name .. " started for " .. math.floor(durationSeconds / 60) .. " minute(s)."
+end
+
 function AdminEvents.stop(reason: string?)
 	if not activeEvent then
 		return false, "No event is active."
