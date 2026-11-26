@@ -19,8 +19,8 @@ local PAD_OFFSETS = {
 
 local MapBuilder = {}
 
--- Axis-aligned regions used by Training to validate zone bonuses server-side.
--- Each entry: { minX, maxX, minZ, maxZ, info = {name, powerRequired, multiplier, vipOnly?} }
+-- Training bonuses are valid only near the actual training pads.
+-- Each entry contains pad centers, a radius, and zone metadata.
 local zoneRegions = {}
 
 local function part(props: { [string]: any }): Part
@@ -105,13 +105,11 @@ end
 
 function MapBuilder.getZoneAt(position: Vector3)
 	for _, region in zoneRegions do
-		if
-			position.X >= region.minX
-			and position.X <= region.maxX
-			and position.Z >= region.minZ
-			and position.Z <= region.maxZ
-		then
-			return region.info
+		for _, padCenter in region.padCenters do
+			local offset = Vector3.new(position.X - padCenter.X, 0, position.Z - padCenter.Z)
+			if offset:Dot(offset) <= region.radius * region.radius then
+				return region.info
+			end
 		end
 	end
 	return nil
@@ -143,11 +141,13 @@ function MapBuilder.build()
 		buildTrainingPads(zoneFolder, center, PAD_OFFSETS, zone.accentColor, zone.multiplier)
 		buildDecorations(zoneFolder, center, zone.accentColor, index * 7919)
 
+		local padCenters = {}
+		for _, offset in PAD_OFFSETS do
+			table.insert(padCenters, center + offset)
+		end
 		table.insert(zoneRegions, {
-			minX = centerX - ZONE_SIZE / 2,
-			maxX = centerX + ZONE_SIZE / 2,
-			minZ = -ZONE_SIZE / 2,
-			maxZ = ZONE_SIZE / 2,
+			padCenters = padCenters,
+			radius = 11,
 			info = {
 				name = zone.name,
 				powerRequired = zone.powerRequired,
@@ -211,10 +211,12 @@ function MapBuilder.build()
 	buildDecorations(vipFolder, Vector3.new(0, 0, -170), vip.accentColor, 424242)
 
 	table.insert(zoneRegions, {
-		minX = -50,
-		maxX = 50,
-		minZ = -220,
-		maxZ = -120,
+		padCenters = {
+			Vector3.new(-28, 0, -150),
+			Vector3.new(0, 0, -198),
+			Vector3.new(28, 0, -150),
+		},
+		radius = 11,
 		info = {
 			name = vip.name,
 			powerRequired = 0,
