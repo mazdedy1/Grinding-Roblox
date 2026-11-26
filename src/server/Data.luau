@@ -15,6 +15,7 @@ local SESSION_TTL = 180
 local DEFAULT_DATA = {
 	version = 1,
 	power = 0,
+	peakPower = 0,
 	coins = 0,
 	coinRemainder = 0,
 	rebirths = 0,
@@ -50,14 +51,16 @@ local function normalize(data)
 			data[key] = deepCopy(value)
 		end
 	end
-	for _, key in { "power", "coins", "rebirths", "gearLevel", "coinRemainder" } do
+	for _, key in { "power", "peakPower", "coins", "rebirths", "gearLevel", "coinRemainder" } do
 		local value = data[key]
 		if type(value) ~= "number" or value ~= value or value < 0 or value == math.huge then
 			data[key] = DEFAULT_DATA[key]
 		end
 	end
-	data.power = math.floor(data.power)
-	data.coins = math.floor(data.coins)
+	data.power = math.clamp(math.floor(data.power), 0, 9_000_000_000_000_000)
+	data.peakPower = math.clamp(math.floor(data.peakPower), data.power, 9_000_000_000_000_000)
+	data.coins = math.clamp(math.floor(data.coins), 0, 9_000_000_000_000_000)
+	data.coinRemainder = math.clamp(data.coinRemainder, 0, 0.999999999)
 	data.rebirths = math.floor(data.rebirths)
 	data.gearLevel = math.clamp(math.floor(data.gearLevel), 0, 100)
 	return data
@@ -200,7 +203,8 @@ end
 function Data.addPower(player: Player, amount: number)
 	local profile = profiles[player]
 	if profile and type(amount) == "number" and amount > 0 and amount < math.huge then
-		profile.power += math.floor(amount)
+		profile.power = math.min(profile.power + math.floor(amount), 9_000_000_000_000_000)
+		profile.peakPower = math.max(profile.peakPower or 0, profile.power)
 		sync(player)
 	end
 end
@@ -212,7 +216,7 @@ function Data.addCoins(player: Player, amount: number)
 		local total = (profile.coinRemainder or 0) + amount
 		local wholeCoins = math.floor(total)
 		profile.coinRemainder = total - wholeCoins
-		profile.coins += wholeCoins
+		profile.coins = math.min(profile.coins + wholeCoins, 9_000_000_000_000_000)
 		sync(player)
 	end
 end
@@ -251,7 +255,7 @@ function Data.grantProductReceipt(player: Player, purchaseId: string, amount: nu
 				local total = (current.coinRemainder or 0) + amount
 				local wholeCoins = math.floor(total)
 				current.coinRemainder = total - wholeCoins
-				current.coins += wholeCoins
+				current.coins = math.min(current.coins + wholeCoins, 9_000_000_000_000_000)
 			end
 			current._sessionExpiresAt = os.time() + SESSION_TTL
 			return current
