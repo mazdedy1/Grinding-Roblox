@@ -107,7 +107,10 @@ function MapBuilder.getZoneAt(position: Vector3)
 	for _, region in zoneRegions do
 		for _, padCenter in region.padCenters do
 			local offset = Vector3.new(position.X - padCenter.X, 0, position.Z - padCenter.Z)
-			if offset:Dot(offset) <= region.radius * region.radius then
+			local verticalDistance = math.abs(position.Y - padCenter.Y)
+			-- Require the player to be near pad height as well as near its center.
+			-- This prevents earning a zone multiplier while flying above/below a pad.
+			if offset:Dot(offset) <= region.radius * region.radius and verticalDistance <= 10 then
 				return region.info
 			end
 		end
