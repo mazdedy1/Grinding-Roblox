@@ -25,7 +25,7 @@ local mapHandles = MapBuilder.build()
 Data.start()
 Monetization.start(Data)
 Training.start(Data, Monetization, MapBuilder)
-Shop.start(Data, GlobalLeaderboard)
 GlobalLeaderboard.start(Data, mapHandles.leaderboardPart)
+Shop.start(Data, GlobalLeaderboard)
 
 print("[Server] Power Punch Simulator ready 💪")
