@@ -187,6 +187,22 @@ function Hud.start()
 	end)
 	player:GetAttributeChangedSignal("OwnsAutoTrain"):Connect(refreshAutoVisibility)
 	refreshAutoVisibility()
+
+	-- Admin controls are only exposed after the server grants the IsAdmin attribute.
+	local adminButton = UI.button({
+		Text = "🛡 Admin",
+		Size = UDim2.fromOffset(120, 46),
+		LayoutOrder = 5,
+		Color = UI.Palette.accent,
+		Parent = menu,
+	})
+	adminButton.Visible = player:GetAttribute("IsAdmin") == true
+	adminButton.Activated:Connect(function()
+		UI.toggleWindow("Admin")
+	end)
+	player:GetAttributeChangedSignal("IsAdmin"):Connect(function()
+		adminButton.Visible = player:GetAttribute("IsAdmin") == true
+	end)
 end
 
 return Hud
