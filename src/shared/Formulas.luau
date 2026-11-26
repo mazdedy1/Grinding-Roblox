@@ -1,6 +1,5 @@
 -- Formulas.luau
--- Pure functions shared by the server (authoritative math) and the client
--- (UI display and prediction). No state, no side effects.
+-- Pure functions shared by the server (authoritative math) and the client.
 
 local Config = require(script.Parent.Config)
 
@@ -15,10 +14,9 @@ function Formulas.gearMultiplier(gearLevel: number): number
 end
 
 function Formulas.rebirthMultiplier(rebirths: number): number
-	return 1 + rebirths * Config.Rebirth.BonusPerRebirth
+	return 1 + math.max(0, rebirths) * Config.Rebirth.BonusPerRebirth
 end
 
--- state: { gearLevel: number, rebirths: number, zoneMultiplier: number?, hasDoublePower: boolean? }
 function Formulas.powerPerPunch(state): number
 	local amount = Config.Training.BasePowerPerPunch
 		* Formulas.gearMultiplier(state.gearLevel)
@@ -27,7 +25,10 @@ function Formulas.powerPerPunch(state): number
 	if state.hasDoublePower then
 		amount *= 2
 	end
-	return math.max(1, math.floor(amount + 0.5))
+	if amount ~= amount or amount == math.huge then
+		return 9_000_000_000_000_000
+	end
+	return math.clamp(math.floor(amount + 0.5), 1, 9_000_000_000_000_000)
 end
 
 function Formulas.coinsForPower(powerGained: number, hasDoubleCoins: boolean?): number
@@ -35,16 +36,27 @@ function Formulas.coinsForPower(powerGained: number, hasDoubleCoins: boolean?): 
 	if hasDoubleCoins then
 		coins *= 2
 	end
-	return math.floor(coins + 0.5)
+	-- Keep fractional rewards; Data.addCoins accumulates the remainder.
+	return math.max(0, coins)
 end
 
 function Formulas.rebirthCost(rebirths: number): number
-	return math.floor(Config.Rebirth.BaseCost * Config.Rebirth.CostGrowth ^ rebirths)
+	local base = Config.Rebirth.BaseCost
+	local growth = Config.Rebirth.CostGrowth
+	local maximum = 9_000_000_000_000_000
+	if base <= 0 or growth <= 1 then
+		return maximum
+	end
+	local exponent = math.max(0, math.floor(rebirths))
+	local logCost = math.log(base) + exponent * math.log(growth)
+	if logCost >= math.log(maximum) then
+		return maximum
+	end
+	return math.max(1, math.floor(math.exp(logCost)))
 end
 
 local SUFFIXES = { "", "K", "M", "B", "T", "Qa", "Qi" }
 
--- 1234567 -> "1.23M", 950 -> "950"
 function Formulas.abbreviate(n: number): string
 	n = math.floor(n)
 	if n < 1000 then
