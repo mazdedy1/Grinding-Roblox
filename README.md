@@ -13,6 +13,8 @@ Punch to gain **Power** 💪 and **Coins** 🪙 → buy gear that multiplies you
 - **Rebirth system** with exponential cost scaling and permanent bonuses
 - **Persistent data** (DataStore retries, session locking, guarded loading, autosave, and temporary Studio fallback)
 - **Global top-10 current-Power leaderboard** on a physical board (OrderedDataStore)
+- **Daily boost rewards**: 7-day streak with temporary 2x Training, 2x Damage, and 2x Coins boosts; persistent cooldowns and expiries
+- **Combat**: server-validated Training Dummy with health, attack cooldown, and temporary damage boosts
 - **Monetization**: 4 gamepasses (2x Power, 2x Coins, Auto Train, VIP Island) + 3 coin-pack developer products
 - **Server-authoritative everywhere**: punch rate limiting, zone bonuses validated against real position + power, all purchases granted server-side
 
@@ -27,6 +29,8 @@ src/
 │   ├── init.server.luau      # entry: creates remotes, wires services (explicit DI)
 │   ├── Data.luau             # profiles, DataStore, leaderstats, autosave
 │   ├── Training.luau         # punch loop, rate limiting, zone validation, Auto Train
+│   ├── Combat.luau           # server-authoritative Training Dummy combat
+│   ├── DailyRewards.luau     # persistent daily boost streaks
 │   ├── Shop.luau             # gear purchases + rebirths (server-validated)
 │   ├── Monetization.luau     # gamepass cache + ProcessReceipt
 │   ├── MapBuilder.luau       # builds the entire world from Config
@@ -70,7 +74,8 @@ Items with an ID of `0` are hidden from the shop automatically, so the game is f
 ## Roadmap
 
 - [ ] Pets: hatch from eggs, equip for multipliers (the big retention + monetization system)
-- [ ] Daily rewards + playtime prizes
+- [x] Daily rewards with temporary boosts
+- [ ] Playtime prizes
 - [ ] Trails/aura cosmetics for big rebirth milestones
 - [ ] Quests ("punch 1,000 times in the Volcano")
 - [ ] Publish via Open Cloud from CI (push-to-deploy)
