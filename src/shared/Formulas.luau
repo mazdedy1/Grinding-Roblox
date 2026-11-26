@@ -39,7 +39,7 @@ function Formulas.damagePerHit(state): number
 	if state.hasDoubleDamage then
 		amount *= 2
 	end
-	amount *= state.eventMultiplier or 1
+	amount *= (state.eventMultiplier or 1)
 	if amount ~= amount or amount == math.huge then
 		return 9_000_000_000_000_000
 	end
@@ -51,7 +51,7 @@ function Formulas.coinsForPower(powerGained: number, hasDoubleCoins: boolean?, e
 	if hasDoubleCoins then
 		coins *= 2
 	end
-	coins *= eventMultiplier or 1
+	coins *= (eventMultiplier or 1)
 	-- Keep fractional rewards; Data.addCoins accumulates the remainder.
 	return math.max(0, coins)
 end
