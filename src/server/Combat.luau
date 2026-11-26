@@ -46,6 +46,7 @@ local function createDummy()
 	humanoid.MaxHealth = Config.Combat.DummyMaxHealth
 	humanoid.Health = humanoid.MaxHealth
 	humanoid.DisplayName = "Training Dummy"
+	humanoid.BreakJointsOnDeath = false
 	humanoid.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOn
 	humanoid.Parent = model
 	model.PrimaryPart = root
