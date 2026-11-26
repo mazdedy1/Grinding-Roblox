@@ -5,7 +5,6 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
-local Formulas = require(ReplicatedStorage.Shared.Formulas)
 local UI = require(script.Parent.UI)
 
 local DailyRewardUi = {}
@@ -24,6 +23,7 @@ end
 
 function DailyRewardUi.build()
 	local content = UI.window("DailyReward", "DAILY BOOST REWARDS", UDim2.fromOffset(440, 390))
+	local window = content.Parent
 	local summary = UI.create("TextLabel", {
 		Size = UDim2.new(1, 0, 0, 52),
 		BackgroundTransparency = 1,
@@ -126,6 +126,14 @@ function DailyRewardUi.build()
 		task.delay(0.1, refresh)
 	end)
 	refresh()
+	task.spawn(function()
+		while window.Parent do
+			task.wait(5)
+			if window.Visible then
+				refresh()
+			end
+		end
+	end)
 end
 
 return DailyRewardUi
