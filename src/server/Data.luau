@@ -179,7 +179,15 @@ local function saveProfile(player: Player, releaseSession: boolean?)
 		return false
 	end
 
+	-- Take the snapshot only after acquiring the write lock. Taking it before
+	-- the lock can capture stale state while a receipt or purchase is updating
+	-- the profile, allowing autosave to overwrite newer in-memory changes.
 	acquireProfileWrite(player)
+	profile = profiles[player]
+	if not profile then
+		releaseProfileWrite(player)
+		return true
+	end
 	local snapshot = deepCopy(profile)
 	local ok, result = pcall(function()
 		return store:UpdateAsync(keyFor(player), function(current)
