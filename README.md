@@ -6,13 +6,13 @@ A complete Roblox clicker/simulator game built **100% in code** — the map, the
 
 ## The game
 
-Punch to gain **Power** 💪 and **Coins** 🪙 → buy gear that multiplies your punches → unlock stronger training zones (Beach → City → Volcano → Space) → **Rebirth** to reset with a permanent multiplier → climb the cross-server global leaderboard.
+Punch to gain **Power** 💪 and **Coins** 🪙 → buy gear that multiplies your punches → unlock stronger training zones (Beach → City → Volcano → Space) → **Rebirth** to reset with a permanent multiplier → climb the cross-server current-Power leaderboard.
 
 - **4 unlockable zones + a VIP island**, procedurally built by [MapBuilder](src/server/MapBuilder.luau) from [Config](src/shared/Config.luau)
 - **6 gear tiers** (Foam Gloves → Void Knuckles, up to x200)
 - **Rebirth system** with exponential cost scaling and permanent bonuses
 - **Persistent data** (DataStore retries, session locking, guarded loading, autosave, and temporary Studio fallback)
-- **Global top-10 peak-Power leaderboard** on a physical board (OrderedDataStore)
+- **Global top-10 current-Power leaderboard** on a physical board (OrderedDataStore)
 - **Monetization**: 4 gamepasses (2x Power, 2x Coins, Auto Train, VIP Island) + 3 coin-pack developer products
 - **Server-authoritative everywhere**: punch rate limiting, zone bonuses validated against real position + power, all purchases granted server-side
 
