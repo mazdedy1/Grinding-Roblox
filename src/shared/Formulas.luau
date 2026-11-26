@@ -22,6 +22,7 @@ function Formulas.powerPerPunch(state): number
 		* Formulas.gearMultiplier(state.gearLevel)
 		* Formulas.rebirthMultiplier(state.rebirths)
 		* (state.zoneMultiplier or 1)
+		* (state.eventMultiplier or 1)
 	if state.hasDoublePower or state.hasDoubleTraining then
 		amount *= 2
 	end
@@ -38,17 +39,19 @@ function Formulas.damagePerHit(state): number
 	if state.hasDoubleDamage then
 		amount *= 2
 	end
+	amount *= state.eventMultiplier or 1
 	if amount ~= amount or amount == math.huge then
 		return 9_000_000_000_000_000
 	end
 	return math.clamp(math.floor(amount + 0.5), 1, 9_000_000_000_000_000)
 end
 
-function Formulas.coinsForPower(powerGained: number, hasDoubleCoins: boolean?): number
+function Formulas.coinsForPower(powerGained: number, hasDoubleCoins: boolean?, eventMultiplier: number?): number
 	local coins = powerGained * Config.Training.CoinsPerPowerGained
 	if hasDoubleCoins then
 		coins *= 2
 	end
+	coins *= eventMultiplier or 1
 	-- Keep fractional rewards; Data.addCoins accumulates the remainder.
 	return math.max(0, coins)
 end
