@@ -34,7 +34,7 @@ local function buildState(player: Player)
 	end
 	local day = (streak % 7) + 1
 	local canClaim = lastClaim == 0 or now - lastClaim >= Config.DailyRewards.ClaimCooldown
-	local rewardKey, duration = rewardForDay(day)
+	local rewardKey, duration = if day == 7 then "RandomBoost", Config.DailyRewards.FinalDuration else rewardForDay(day)
 
 	local active = {}
 	for key, expiresAt in profile.activeBoosts do
@@ -77,7 +77,7 @@ function DailyRewards.start(dataService)
 			return
 		end
 
-		local rewardKey, duration = state.nextReward, state.nextDuration
+		local rewardKey, duration = if state.nextDay == 7 then rewardForDay(7) else state.nextReward, state.nextDuration
 		Data.addBoost(player, rewardKey, duration)
 		Data.setDailyReward(player, os.time(), state.nextDay)
 		remotes.Notify:FireClient(player, "success", ("Day %d reward: %s for %d minutes!"):format(
@@ -89,9 +89,16 @@ function DailyRewards.start(dataService)
 	end)
 
 	Players.PlayerAdded:Connect(function(player)
-		task.defer(function()
-			if Data.get(player) then
-				remotes.DailyRewardUpdate:FireClient(player)
+		task.spawn(function()
+			for _ = 1, 60 do
+				if not player.Parent then
+					return
+				end
+				if Data.get(player) then
+					remotes.DailyRewardUpdate:FireClient(player)
+					return
+				end
+				task.wait(0.5)
 			end
 		end)
 	end)
