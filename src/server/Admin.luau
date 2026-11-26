@@ -71,6 +71,18 @@ local function execute(player: Player, raw: string)
 	if command == "" then return end
 	local parts = string.split(command, " ")
 	local verb = string.lower(parts[1] or "")
+	local requiredPermission = ({
+		players = "players", tp = "players",
+		event = "events",
+		announce = "announce",
+		kick = "moderation", ban = "moderation", unban = "moderation",
+		givepower = "economy", givecoins = "economy",
+	})[verb]
+	if requiredPermission and not hasPermission(player, requiredPermission) then
+		log(player, command, "Permission denied.")
+		reply(player, "Your role cannot use this command.", false)
+		return
+	end
 	local ok, message = false, "Unknown command."
 	local permission = nil
 
@@ -108,7 +120,7 @@ local function execute(player: Player, raw: string)
 	elseif verb == "kick" or verb == "ban" then
 		permission = "moderation"
 		local target = findPlayer(parts[2] or "")
-		local reasonStart = if verb == "ban" then 5 else 4
+		local reasonStart = if verb == "ban" then 4 else 3
 		local reason = table.concat(parts, " ", reasonStart)
 		if not target then
 			message = "Player not found. Target must be online."
@@ -153,9 +165,6 @@ local function execute(player: Player, raw: string)
 		else message = "Target or your character is unavailable." end
 	end
 
-	if permission and not hasPermission(player, permission) then
-		ok, message = false, "Your role cannot use this command."
-	end
 	log(player, command, message)
 	reply(player, message, ok)
 end
