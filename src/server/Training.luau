@@ -57,9 +57,11 @@ local function punch(player: Player, bypassCooldown: boolean?)
 		zoneMultiplier = zoneMultiplierFor(player, profile),
 		hasDoublePower = Monetization.ownsPass(player, "DoublePower"),
 		hasDoubleTraining = Data.hasActiveBoost(player, "DoubleTraining"),
+		eventMultiplier = player:GetAttribute("Event_TrainingMultiplier") or 1,
 	})
 	local coinsGain = Formulas.coinsForPower(powerGain,
-		Monetization.ownsPass(player, "DoubleCoins") or Data.hasActiveBoost(player, "DoubleCoins")
+		Monetization.ownsPass(player, "DoubleCoins") or Data.hasActiveBoost(player, "DoubleCoins"),
+		player:GetAttribute("Event_CoinMultiplier") or 1
 	)
 
 	Data.addPower(player, powerGain)
