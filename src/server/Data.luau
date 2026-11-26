@@ -25,6 +25,7 @@ local DEFAULT_DATA = {
 local Data = {}
 local profiles = {}
 local sessionTokens = {}
+local ephemeralProfiles = {}
 local store = nil
 local memoryOnly = false
 
@@ -81,6 +82,7 @@ local function loadProfile(player: Player)
 
 	if memoryOnly or not store then
 		if RunService:IsStudio() then
+			ephemeralProfiles[player] = true
 			return deepCopy(DEFAULT_DATA)
 		end
 		return nil, "DataStore unavailable"
@@ -121,6 +123,7 @@ local function loadProfile(player: Player)
 	-- must never turn a temporary DataStore outage into a fresh profile.
 	if RunService:IsStudio() then
 		warn(`[Data] Using temporary Studio profile for {player.Name}; progress will not persist.`)
+		ephemeralProfiles[player] = true
 		sessionTokens[player] = nil
 		return deepCopy(DEFAULT_DATA)
 	end
@@ -130,6 +133,9 @@ end
 local function saveProfile(player: Player, releaseSession: boolean?)
 	local profile = profiles[player]
 	if not profile then
+		return true
+	end
+	if ephemeralProfiles[player] then
 		return true
 	end
 	if memoryOnly or not store then
@@ -220,7 +226,7 @@ function Data.grantProductReceipt(player: Player, purchaseId: string, amount: nu
 		return true
 	end
 
-	if memoryOnly or not store then
+	if ephemeralProfiles[player] or memoryOnly or not store then
 		if not RunService:IsStudio() then
 			return false
 		end
@@ -316,6 +322,7 @@ function Data.start()
 		saveProfile(player, true)
 		profiles[player] = nil
 		sessionTokens[player] = nil
+		ephemeralProfiles[player] = nil
 	end)
 
 	game:BindToClose(function()
