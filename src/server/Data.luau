@@ -15,7 +15,6 @@ local SESSION_TTL = 180
 local DEFAULT_DATA = {
 	version = 1,
 	power = 0,
-	peakPower = 0,
 	coins = 0,
 	coinRemainder = 0,
 	rebirths = 0,
@@ -52,14 +51,13 @@ local function normalize(data)
 			data[key] = deepCopy(value)
 		end
 	end
-	for _, key in { "power", "peakPower", "coins", "rebirths", "gearLevel", "coinRemainder" } do
+	for _, key in { "power", "coins", "rebirths", "gearLevel", "coinRemainder" } do
 		local value = data[key]
 		if type(value) ~= "number" or value ~= value or value < 0 or value == math.huge then
 			data[key] = DEFAULT_DATA[key]
 		end
 	end
 	data.power = math.clamp(math.floor(data.power), 0, 9_000_000_000_000_000)
-	data.peakPower = math.clamp(math.floor(data.peakPower), data.power, 9_000_000_000_000_000)
 	data.coins = math.clamp(math.floor(data.coins), 0, 9_000_000_000_000_000)
 	data.coinRemainder = math.clamp(data.coinRemainder, 0, 0.999999999)
 	data.rebirths = math.floor(data.rebirths)
@@ -236,7 +234,6 @@ function Data.addPower(player: Player, amount: number)
 	local profile = profiles[player]
 	if profile and type(amount) == "number" and amount > 0 and amount < math.huge then
 		profile.power = math.min(profile.power + math.floor(amount), 9_000_000_000_000_000)
-		profile.peakPower = math.max(profile.peakPower or 0, profile.power)
 		sync(player)
 	end
 end
