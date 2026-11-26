@@ -1,7 +1,5 @@
 -- GlobalLeaderboard.luau
--- Cross-server top-10 power leaderboard on a physical board near spawn,
--- backed by an OrderedDataStore. Degrades gracefully in unpublished Studio
--- playtests where DataStores are unavailable.
+-- Cross-server top-10 leaderboard. Values represent each player's peak Power.
 
 local DataStoreService = game:GetService("DataStoreService")
 local Players = game:GetService("Players")
@@ -14,8 +12,7 @@ local UPDATE_INTERVAL = 120
 local TOP_N = 10
 
 local GlobalLeaderboard = {}
-
-local nameCache = {} -- [userId] = username
+local nameCache = {}
 
 local function usernameFor(userId: number): string
 	if nameCache[userId] then
@@ -76,7 +73,6 @@ end
 
 function GlobalLeaderboard.start(Data, boardPart: BasePart)
 	local rows = buildBoardGui(boardPart)
-
 	local ok, store = pcall(function()
 		return DataStoreService:GetOrderedDataStore(STORE_NAME)
 	end)
@@ -86,15 +82,19 @@ function GlobalLeaderboard.start(Data, boardPart: BasePart)
 	end
 
 	task.spawn(function()
-		task.wait(5) -- let first players load in before the first refresh
+		task.wait(5)
 		while true do
-			-- Push current players' power, then pull the global top 10.
 			for _, player in Players:GetPlayers() do
 				local profile = Data.get(player)
 				if profile and profile.power > 0 then
-					pcall(function()
-						store:SetAsync(tostring(player.UserId), profile.power)
+					local success, err = pcall(function()
+						store:UpdateAsync(tostring(player.UserId), function(previous)
+							return math.max(tonumber(previous) or 0, profile.power)
+						end)
 					end)
+					if not success then
+						warn(`[Leaderboard] Failed to update {player.Name}: {err}`)
+					end
 				end
 			end
 
@@ -117,8 +117,9 @@ function GlobalLeaderboard.start(Data, boardPart: BasePart)
 						rows[i].Text = ""
 					end
 				end
+			else
+				warn(`[Leaderboard] Failed to read global board: {pages}`)
 			end
-
 			task.wait(UPDATE_INTERVAL)
 		end
 	end)
