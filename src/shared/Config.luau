@@ -101,4 +101,32 @@ Config.DevProducts = {
 	{ key = "LargeCoins", id = 0, coins = 1_000_000, label = "1M Coins" }, -- suggested: 799 R$
 }
 
+-- Daily rewards are temporary boosts, not direct currency grants.
+Config.DailyRewards = {
+	ClaimCooldown = 24 * 60 * 60,
+	StreakResetAfter = 48 * 60 * 60,
+	FinalDuration = 10 * 60,
+	BoostNames = {
+		DoubleTraining = "2x Training Power",
+		DoubleDamage = "2x Damage",
+		DoubleCoins = "2x Coins",
+	},
+	Schedule = {
+		{ key = "DoubleTraining", duration = 3 * 60 },
+		{ key = "DoubleDamage", duration = 3 * 60 },
+		{ key = "DoubleCoins", duration = 3 * 60 },
+		{ key = "DoubleTraining", duration = 5 * 60 },
+		{ key = "DoubleDamage", duration = 5 * 60 },
+		{ key = "DoubleCoins", duration = 5 * 60 },
+	},
+}
+
+Config.Combat = {
+	BaseDamage = 10,
+	AttackCooldown = 0.65,
+	AttackDistance = 12,
+	DummyMaxHealth = 5_000,
+	DummyRespawnSeconds = 5,
+}
+
 return Config
