@@ -155,12 +155,23 @@ function Hud.start()
 		UI.toggleWindow("Rebirth")
 	end)
 
+	UI.button({
+		Text = "🎁 Daily",
+		Size = UDim2.fromOffset(120, 46),
+		LayoutOrder = 3,
+		Color = UI.Palette.panelLight,
+		TextColor = UI.Palette.text,
+		Parent = menu,
+	}).Activated:Connect(function()
+		UI.toggleWindow("DailyReward")
+	end)
+
 	-- Auto Train toggle: only visible once the gamepass is owned.
 	local autoOn = false
 	local autoButton = UI.button({
 		Text = "⚡ Auto: OFF",
 		Size = UDim2.fromOffset(120, 46),
-		LayoutOrder = 3,
+		LayoutOrder = 4,
 		Color = UI.Palette.panelLight,
 		TextColor = UI.Palette.text,
 		Parent = menu,
