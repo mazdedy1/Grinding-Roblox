@@ -45,7 +45,7 @@ function AdminUi.build()
 		if type(value) == "string" and value ~= "" then showNotice(value) end
 	end)
 
-	local content = UI.window("Admin", "ADMIN CONTROL", UDim2.fromOffset(540, 440))
+	local content = UI.window("Admin", "ADMIN CONTROL", UDim2.fromOffset(460, 430))
 	makeLabel(content, "Server administration • Commands are checked by the server.", UDim2.fromOffset(4, 0), UDim2.new(1, -8, 0, 28), UI.Palette.subtext)
 
 	local commandBox = UI.create("TextBox", {
