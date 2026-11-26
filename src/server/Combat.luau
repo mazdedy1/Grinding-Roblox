@@ -112,6 +112,7 @@ function Combat.start(dataService)
 			gearLevel = profile.gearLevel,
 			rebirths = profile.rebirths,
 			hasDoubleDamage = Data.hasActiveBoost(player, "DoubleDamage"),
+			eventMultiplier = player:GetAttribute("Event_DamageMultiplier") or 1,
 		})
 		health = math.max(0, health - damage)
 		updateHealthLabel()
