@@ -86,10 +86,10 @@ function GlobalLeaderboard.start(Data, boardPart: BasePart)
 		while true do
 			for _, player in Players:GetPlayers() do
 				local profile = Data.get(player)
-				if profile and profile.power > 0 then
+				if profile and (profile.peakPower or profile.power) > 0 then
 					local success, err = pcall(function()
 						store:UpdateAsync(tostring(player.UserId), function(previous)
-							return math.max(tonumber(previous) or 0, profile.power)
+							return math.max(tonumber(previous) or 0, profile.peakPower or profile.power)
 						end)
 					end)
 					if not success then
