@@ -89,7 +89,7 @@ local function execute(player: Player, raw: string)
 
 	if verb == "help" then
 		ok = true
-		message = "Commands: players | event start <megagrind|coinrush|damagefrenzy|superhour> <minutes> | event stop | announce <message> | kick <player> <reason> | ban <player> <minutes> <reason> | unban <userId> | givepower/givecoins <player> <amount> | tp <player>"
+		message = "Commands: players | event start <preset> <minutes> | event stop | boost all <training|coins|damage> <1x-5x> <minutes> | boost stop | announce <message> | kick <player> <reason> | ban <player> <minutes> <reason> | unban <userId> | givepower/givecoins <player> <amount> | tp <player>"
 	elseif verb == "players" then
 		permission = "players"
 		local names = {}
@@ -100,7 +100,8 @@ local function execute(player: Player, raw: string)
 		if string.lower(parts[2] or "") == "stop" then
 			ok, message = AdminEvents.stop("Admin ended the event.")
 		elseif string.lower(parts[2] or "") == "start" then
-			local minutes = tonumber(parts[4])
+			local durationText = string.lower(parts[4] or "")
+			local minutes = tonumber(string.match(durationText, "^(%d+)m$")) or tonumber(durationText)
 			if minutes and minutes % 1 == 0 and minutes >= 1 and minutes <= Config.MaxEventMinutes then
 				ok, message = AdminEvents.start(parts[3] or "", minutes * 60)
 			else
