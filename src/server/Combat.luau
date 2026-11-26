@@ -42,13 +42,6 @@ local function createDummy()
 	head.Color = Color3.fromRGB(220, 190, 150)
 	head.Parent = model
 
-	local humanoid = Instance.new("Humanoid")
-	humanoid.MaxHealth = Config.Combat.DummyMaxHealth
-	humanoid.Health = humanoid.MaxHealth
-	humanoid.DisplayName = "Training Dummy"
-	humanoid.BreakJointsOnDeath = false
-	humanoid.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOn
-	humanoid.Parent = model
 	model.PrimaryPart = root
 
 	local prompt = Instance.new("ProximityPrompt")
@@ -65,7 +58,7 @@ local function createDummy()
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name = "DummyLabel"
 	billboard.Adornee = head
-	billboard.Size = UDim2.fromOffset(180, 42)
+	billboard.Size = UDim2.fromOffset(190, 58)
 	billboard.StudsOffset = Vector3.new(0, 1.6, 0)
 	billboard.AlwaysOnTop = true
 	billboard.Parent = model
@@ -73,26 +66,36 @@ local function createDummy()
 	local label = Instance.new("TextLabel")
 	label.Size = UDim2.fromScale(1, 1)
 	label.BackgroundTransparency = 1
-	label.Text = "TRAINING DUMMY"
 	label.TextColor3 = Color3.fromRGB(255, 220, 110)
 	label.TextStrokeTransparency = 0.25
 	label.Font = Enum.Font.FredokaOne
 	label.TextScaled = true
+	label.TextWrapped = true
 	label.Parent = billboard
 
 	model.Parent = workspace
-	return model, humanoid, prompt
+	return model, prompt, label
 end
 
 function Combat.start(dataService)
 	Data = dataService
-	local model, humanoid, prompt = createDummy()
+	local model, prompt, label = createDummy()
+	local health = Config.Combat.DummyMaxHealth
+	local respawning = false
+
+	local function updateHealthLabel()
+		label.Text = string.format("TRAINING DUMMY\nHP: %s / %s",
+			Formulas.abbreviate(health),
+			Formulas.abbreviate(Config.Combat.DummyMaxHealth)
+		)
+	end
+	updateHealthLabel()
 
 	prompt.Triggered:Connect(function(player)
 		local profile = Data.get(player)
 		local character = player.Character
 		local playerRoot = character and character:FindFirstChild("HumanoidRootPart")
-		if not profile or not playerRoot or humanoid.Health <= 0 then
+		if not profile or not playerRoot or health <= 0 or respawning then
 			return
 		end
 		if (playerRoot.Position - model.PrimaryPart.Position).Magnitude > Config.Combat.AttackDistance + 3 then
@@ -110,15 +113,22 @@ function Combat.start(dataService)
 			rebirths = profile.rebirths,
 			hasDoubleDamage = Data.hasActiveBoost(player, "DoubleDamage"),
 		})
-		humanoid:TakeDamage(damage)
-	end)
+		health = math.max(0, health - damage)
+		updateHealthLabel()
 
-	humanoid.Died:Connect(function()
-		task.delay(Config.Combat.DummyRespawnSeconds, function()
-			if model.Parent then
-				humanoid.Health = humanoid.MaxHealth
-			end
-		end)
+		if health <= 0 then
+			respawning = true
+			prompt.Enabled = false
+			label.Text = "DUMMY DEFEATED!"
+			task.delay(Config.Combat.DummyRespawnSeconds, function()
+				if model.Parent then
+					health = Config.Combat.DummyMaxHealth
+					respawning = false
+					prompt.Enabled = true
+					updateHealthLabel()
+				end
+			end)
+		end
 	end)
 
 	Players.PlayerRemoving:Connect(function(player)
