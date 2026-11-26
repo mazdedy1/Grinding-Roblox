@@ -74,7 +74,7 @@ For live-sync development instead: `rojo plugin install` once, then `rojo serve`
 
 The admin panel is hidden from ordinary players. Every command is permission-checked by the server. Event boosts apply to the current server only, expire automatically, and do not alter saved player boost data. Audit entries are held in the server's memory and reset when that server closes.
 
-Commands: `help`, `players`, `event start <preset> <minutes>`, `event stop`, `announce <message>`, `kick <player> <reason>`, `ban <player> <minutes> <reason>`, `unban <userId>`, `givepower <player> <amount>`, `givecoins <player> <amount>`, `tp <player>`.
+Commands: `help`, `players`, `event start <preset> <minutes>`, `event stop`, `boost all <training|coins|damage> <1x-5x> <minutes>`, `boost stop`, `announce <message>`, `kick <player> <reason>`, `ban <player> <minutes> <reason>`, `unban <userId>`, `givepower <player> <amount>`, `givecoins <player> <amount>`, `tp <player>`.
 
 ## Enabling monetization
 
