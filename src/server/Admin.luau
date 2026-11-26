@@ -74,7 +74,7 @@ local function execute(player: Player, raw: string)
 	local verb = string.lower(parts[1] or "")
 	local requiredPermission = ({
 		players = "players", tp = "players",
-		event = "events",
+		event = "events", boost = "events",
 		announce = "announce",
 		kick = "moderation", ban = "moderation", unban = "moderation",
 		givepower = "economy", givecoins = "economy",
@@ -108,6 +108,29 @@ local function execute(player: Player, raw: string)
 			end
 		else
 			message = "Usage: event start <preset> <minutes> OR event stop"
+		end
+	elseif verb == "boost" then
+		permission = "events"
+		if string.lower(parts[2] or "") == "stop" then
+			ok, message = AdminEvents.stop("Admin ended the boost event.")
+		elseif string.lower(parts[2] or "") == "all" then
+			local kind = string.lower(parts[3] or "")
+			local multiplierText = string.lower(parts[4] or "")
+			local multiplier = tonumber(string.gsub(multiplierText, "x", ""))
+			local durationText = string.lower(parts[5] or "")
+			local minutes = tonumber(string.match(durationText, "^(%d+)m$")) or tonumber(durationText)
+			if (kind == "training" or kind == "coins" or kind == "damage")
+				and multiplier and multiplier % 1 == 0 and multiplier >= 1 and multiplier <= 5
+				and minutes and minutes % 1 == 0 and minutes >= 1 and minutes <= Config.MaxEventMinutes then
+				local training = if kind == "training" then multiplier else 1
+				local coins = if kind == "coins" then multiplier else 1
+				local damage = if kind == "damage" then multiplier else 1
+				ok, message = AdminEvents.startCustom(string.upper(kind) .. " BOOST", training, coins, damage, minutes * 60)
+			else
+				message = "Usage: boost all <training|coins|damage> <1x-5x> <minutes>"
+			end
+		else
+			message = "Usage: boost all <training|coins|damage> <1x-5x> <minutes> OR boost stop"
 		end
 	elseif verb == "announce" then
 		permission = "announce"
