@@ -9,7 +9,7 @@ local Formulas = require(ReplicatedStorage.Shared.Formulas)
 
 local Shop = {}
 
-function Shop.start(Data)
+function Shop.start(Data, GlobalLeaderboard)
 	local remotes = ReplicatedStorage.Remotes
 	local notify = remotes.Notify
 
@@ -45,6 +45,10 @@ function Shop.start(Data)
 			return
 		end
 		Data.applyRebirth(player)
+		-- Rebirth resets the player's current global leaderboard score immediately.
+		if GlobalLeaderboard then
+			GlobalLeaderboard.setPower(player, 0)
+		end
 		local bonus = profile.rebirths * Config.Rebirth.BonusPerRebirth * 100
 		notify:FireClient(player, "success", `Rebirth {profile.rebirths}! Permanent +{bonus}% power.`)
 		-- Zones re-lock when power resets; respawn so nobody is trapped behind a gate.
