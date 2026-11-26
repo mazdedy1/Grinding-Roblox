@@ -1,5 +1,5 @@
 -- GlobalLeaderboard.luau
--- Cross-server top-10 leaderboard. Values represent each player's peak Power.
+-- Cross-server top-10 leaderboard. Values represent each player's current Power.
 
 local DataStoreService = game:GetService("DataStoreService")
 local Players = game:GetService("Players")
@@ -13,6 +13,7 @@ local TOP_N = 10
 
 local GlobalLeaderboard = {}
 local nameCache = {}
+local orderedStore = nil
 
 local function usernameFor(userId: number): string
 	if nameCache[userId] then
@@ -71,6 +72,19 @@ local function buildBoardGui(board: BasePart): { TextLabel }
 	return rows
 end
 
+function GlobalLeaderboard.setPower(player: Player, power: number)
+	if not orderedStore then
+		return false
+	end
+	local ok, err = pcall(function()
+		orderedStore:SetAsync(tostring(player.UserId), math.max(0, math.floor(power)))
+	end)
+	if not ok then
+		warn(`[Leaderboard] Failed to reset/update {player.Name}: {err}`)
+	end
+	return ok
+end
+
 function GlobalLeaderboard.start(Data, boardPart: BasePart)
 	local rows = buildBoardGui(boardPart)
 	local ok, store = pcall(function()
@@ -80,17 +94,16 @@ function GlobalLeaderboard.start(Data, boardPart: BasePart)
 		rows[1].Text = "Publish the game to enable the global leaderboard"
 		return
 	end
+	orderedStore = store
 
 	task.spawn(function()
 		task.wait(5)
 		while true do
 			for _, player in Players:GetPlayers() do
 				local profile = Data.get(player)
-				if profile and (profile.peakPower or profile.power) > 0 then
+				if profile then
 					local success, err = pcall(function()
-						store:UpdateAsync(tostring(player.UserId), function(previous)
-							return math.max(tonumber(previous) or 0, profile.peakPower or profile.power)
-						end)
+						store:SetAsync(tostring(player.UserId), math.max(0, math.floor(profile.power)))
 					end)
 					if not success then
 						warn(`[Leaderboard] Failed to update {player.Name}: {err}`)
