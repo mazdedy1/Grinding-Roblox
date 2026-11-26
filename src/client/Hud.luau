@@ -122,7 +122,7 @@ function Hud.start()
 	local menu = UI.create("Frame", {
 		AnchorPoint = Vector2.new(0, 0.5),
 		Position = UDim2.new(0, 12, 0.5, 0),
-		Size = UDim2.fromOffset(120, 220),
+		Size = UDim2.fromOffset(120, 280),
 		BackgroundTransparency = 1,
 		Parent = gui,
 	}, {
