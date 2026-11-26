@@ -1,29 +1,22 @@
 -- AdminConfig.luau
--- Add the experience owner's Roblox UserId before publishing.
+-- Shared, non-secret tier policy. Developer identities are hardcoded only in
+-- the server-only Admin module, never replicated to clients.
+
 local AdminConfig = {}
 
-AdminConfig.OwnerUserIds = {
-	-- REQUIRED: add the owner's numeric Roblox UserId here.
-}
-
--- Optional additional staff: [userId] = "HeadAdmin" | "Admin" | "Moderator"
-AdminConfig.Staff = {
-	-- [123456789] = "Admin",
-}
-
 AdminConfig.Roles = {
-	Owner = 100,
-	HeadAdmin = 80,
-	Admin = 60,
-	Moderator = 30,
+	Developer = "Developer",
+	Admin = "Admin",
+	Streamer = "Streamer",
 }
 
 AdminConfig.Permissions = {
-	players = 30,
-	moderation = 30,
-	events = 60,
-	economy = 60,
-	announce = 30,
+	players = { Developer = true, Admin = true },
+	moderation = { Developer = true, Admin = true },
+	events = { Developer = true, Admin = true },
+	announce = { Developer = true, Admin = true },
+	economy = { Developer = true },
+	roles = { Developer = true },
 }
 
 AdminConfig.MaxGrant = 1000000000
