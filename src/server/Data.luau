@@ -20,6 +20,8 @@ local DEFAULT_DATA = {
 	rebirths = 0,
 	gearLevel = 0,
 	receiptIds = {},
+	dailyReward = { lastClaimAt = 0, streak = 0 },
+	activeBoosts = {},
 }
 
 local Data = {}
@@ -51,6 +53,20 @@ local function normalize(data)
 			data[key] = deepCopy(value)
 		end
 	end
+	if type(data.dailyReward) ~= "table" then
+		data.dailyReward = { lastClaimAt = 0, streak = 0 }
+	end
+	data.dailyReward.lastClaimAt = math.max(0, math.floor(tonumber(data.dailyReward.lastClaimAt) or 0))
+	data.dailyReward.streak = math.clamp(math.floor(tonumber(data.dailyReward.streak) or 0), 0, 7)
+	if type(data.activeBoosts) ~= "table" then
+		data.activeBoosts = {}
+	end
+	for key, expiresAt in data.activeBoosts do
+		if type(key) ~= "string" or type(expiresAt) ~= "number" or expiresAt ~= expiresAt then
+			data.activeBoosts[key] = nil
+		end
+	end
+
 	for _, key in { "power", "coins", "rebirths", "gearLevel", "coinRemainder" } do
 		local value = data[key]
 		if type(value) ~= "number" or value ~= value or value < 0 or value == math.huge then
@@ -236,6 +252,38 @@ end
 
 function Data.get(player: Player)
 	return profiles[player]
+end
+
+function Data.addBoost(player: Player, boostKey: string, duration: number)
+	local profile = profiles[player]
+	if not profile or type(boostKey) ~= "string" or type(duration) ~= "number" or duration <= 0 then
+		return false
+	end
+	local now = os.time()
+	local currentExpiry = tonumber(profile.activeBoosts[boostKey]) or 0
+	profile.activeBoosts[boostKey] = math.max(now, currentExpiry) + math.floor(duration)
+	player:SetAttribute("Boost_" .. boostKey, true)
+	return true
+end
+
+function Data.hasActiveBoost(player: Player, boostKey: string): boolean
+	local profile = profiles[player]
+	local expiresAt = profile and tonumber(profile.activeBoosts[boostKey]) or 0
+	local active = expiresAt > os.time()
+	if player:GetAttribute("Boost_" .. boostKey) ~= active then
+		player:SetAttribute("Boost_" .. boostKey, active)
+	end
+	return active
+end
+
+function Data.setDailyReward(player: Player, claimedAt: number, streak: number)
+	local profile = profiles[player]
+	if not profile then
+		return false
+	end
+	profile.dailyReward.lastClaimAt = math.max(0, math.floor(claimedAt))
+	profile.dailyReward.streak = math.clamp(math.floor(streak), 0, 7)
+	return true
 end
 
 function Data.addPower(player: Player, amount: number)
