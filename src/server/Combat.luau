@@ -111,10 +111,6 @@ function Combat.start(dataService)
 			hasDoubleDamage = Data.hasActiveBoost(player, "DoubleDamage"),
 		})
 		humanoid:TakeDamage(damage)
-		local notify = ReplicatedStorage.Remotes:FindFirstChild("Notify")
-		if notify then
-			notify:FireClient(player, "success", ("Dealt %s damage!"):format(Formulas.abbreviate(damage)))
-		end
 	end)
 
 	humanoid.Died:Connect(function()
