@@ -26,7 +26,7 @@ local function refreshPasses(player: Player)
 					return MarketplaceService:UserOwnsGamePassAsync(player.UserId, passId)
 				end)
 				if ok then
-					owned[key] = result == true
+					owned[key] = owned[key] == true or result == true
 					player:SetAttribute("Owns" .. key, owned[key])
 					break
 				end
