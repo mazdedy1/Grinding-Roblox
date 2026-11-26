@@ -6,7 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local remotes = Instance.new("Folder")
 remotes.Name = "Remotes"
-for _, name in { "Punch", "BuyGear", "Rebirth", "Notify", "ToggleAutoTrain", "ClaimDailyReward", "DailyRewardUpdate" } do
+for _, name in { "Punch", "BuyGear", "Rebirth", "Notify", "ToggleAutoTrain", "ClaimDailyReward", "DailyRewardUpdate", "AdminRequest" } do
 	local remote = Instance.new("RemoteEvent")
 	remote.Name = name
 	remote.Parent = remotes
@@ -25,6 +25,7 @@ local MapBuilder = require(script.MapBuilder)
 local GlobalLeaderboard = require(script.GlobalLeaderboard)
 local Combat = require(script.Combat)
 local DailyRewards = require(script.DailyRewards)
+local Admin = require(script.Admin)
 
 local mapHandles = MapBuilder.build()
 
@@ -35,5 +36,6 @@ GlobalLeaderboard.start(Data, mapHandles.leaderboardPart)
 Shop.start(Data, GlobalLeaderboard)
 Combat.start(Data)
 DailyRewards.start(Data)
+Admin.start(Data)
 
 print("[Server] Power Punch Simulator ready 💪")
