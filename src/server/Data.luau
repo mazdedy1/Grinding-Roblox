@@ -286,6 +286,23 @@ function Data.setDailyReward(player: Player, claimedAt: number, streak: number)
 	return true
 end
 
+-- Admin-only mutation entry point. Caller must enforce server-side permissions.
+function Data.adminGrant(player: Player, stat: string, amount: number): boolean
+	local profile = profiles[player]
+	if not profile or (stat ~= "power" and stat ~= "coins")
+		or type(amount) ~= "number" or amount % 1 ~= 0
+		or amount < 1 or amount > 1_000_000_000 then
+		return false
+	end
+	if stat == "power" then
+		profile.power = math.min(profile.power + amount, 9_000_000_000_000_000)
+	else
+		profile.coins = math.min(profile.coins + amount, 9_000_000_000_000_000)
+	end
+	sync(player)
+	return true
+end
+
 function Data.addPower(player: Player, amount: number)
 	local profile = profiles[player]
 	if profile and type(amount) == "number" and amount > 0 and amount < math.huge then
