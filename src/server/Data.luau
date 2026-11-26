@@ -9,7 +9,7 @@ local HttpService = game:GetService("HttpService")
 
 local DATASTORE_NAME = "PlayerData_v1"
 local AUTOSAVE_INTERVAL = 60
-local LOAD_RETRIES = 5
+local LOAD_RETRIES = 24
 local SESSION_TTL = 180
 
 local DEFAULT_DATA = {
@@ -103,6 +103,7 @@ local function loadProfile(player: Player)
 		return nil, "DataStore unavailable"
 	end
 
+	local datastoreFailures = 0
 	for attempt = 1, LOAD_RETRIES do
 		local ok, result = pcall(function()
 			return store:UpdateAsync(keyFor(player), function(current)
@@ -126,12 +127,29 @@ local function loadProfile(player: Player)
 			return normalize(result)
 		end
 		if not ok then
+			datastoreFailures += 1
 			warn(`[Data] Profile load attempt {attempt} failed for {player.Name}: {result}`)
+			if datastoreFailures >= 5 then
+				break
+			end
+			task.wait(math.min(2 ^ datastoreFailures, 10))
+		else
+			-- A nil result means another live server may own this profile.
+			-- Wait for its lease to expire instead of kicking a returning player
+			-- after a short, fixed retry window.
+			local lockOk, current = pcall(function()
+				return store:GetAsync(keyFor(player))
+			end)
+			local expiresAt = lockOk and type(current) == "table"
+				and tonumber(current._sessionExpiresAt) or nil
+			local waitSeconds = if expiresAt and expiresAt > os.time()
+				then math.clamp(expiresAt - os.time() + 1, 1, 10)
+				else 1
+			task.wait(waitSeconds)
 		end
 		if not player.Parent then
 			return nil, "Player left while loading"
 		end
-		task.wait(math.min(2 ^ attempt, 10))
 	end
 
 	-- Only unpublished Studio tests may run without persistence. A live game
