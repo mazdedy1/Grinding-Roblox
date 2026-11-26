@@ -15,7 +15,8 @@ Punch to gain **Power** 💪 and **Coins** 🪙 → buy gear that multiplies you
 - **Global top-10 current-Power leaderboard** on a physical board (OrderedDataStore)
 - **Daily boost rewards**: 7-day streak with temporary 2x Training, 2x Damage, and 2x Coins boosts; persistent cooldowns and expiries
 - **Combat**: server-validated Training Dummy with health, attack cooldown, and temporary damage boosts
-- **Custom Admin**: server-side role permissions, command panel, moderation via Roblox ban API, economy grants, timed server events, announcements, and in-memory audit log
+- **Three-tier custom admin**: hardcoded Developer tier with economy tools, DataStore-backed Admin tier without economy access, and DataStore-backed Streamer tier with a free overhead nametag
+- **Admin events**: timed server-local multipliers, announcements, moderation, role assignment, and in-memory audit log
 - **Monetization**: 4 gamepasses (2x Power, 2x Coins, Auto Train, VIP Island) + 3 coin-pack developer products
 - **Server-authoritative everywhere**: punch rate limiting, zone bonuses validated against real position + power, all purchases granted server-side
 
@@ -23,34 +24,38 @@ Punch to gain **Power** 💪 and **Coins** 🪙 → buy gear that multiplies you
 
 ```
 src/
-├── shared/            # replicated to both sides
-│   ├── Config.luau    # every tunable number: balance, zones, gear, product IDs
-│   └── AdminConfig.luau # owner allowlist, staff roles, permissions
-│   └── Formulas.luau  # pure math shared by server (authority) and client (display)
+├── shared/
+│   ├── Config.luau
+│   ├── AdminConfig.luau       # shared tier permission policy (no Developer IDs)
+│   └── Formulas.luau
 ├── server/
-│   ├── init.server.luau      # entry: creates remotes, wires services (explicit DI)
-│   ├── Data.luau             # profiles, DataStore, leaderstats, autosave
-│   ├── Training.luau         # punch loop, rate limiting, zone validation, Auto Train
-│   ├── Combat.luau           # server-authoritative Training Dummy combat
-│   ├── DailyRewards.luau     # persistent daily boost streaks
-│   ├── Admin.luau            # server-side admin command router + audit log
-│   ├── AdminEvents.luau      # temporary server-wide event multipliers
-│   ├── AdminModeration.luau # Roblox kick/ban/unban wrapper
-│   ├── Shop.luau             # gear purchases + rebirths (server-validated)
-│   ├── Monetization.luau     # gamepass cache + ProcessReceipt
-│   ├── MapBuilder.luau       # builds the entire world from Config
+│   ├── init.server.luau
+│   ├── Data.luau
+│   ├── Training.luau
+│   ├── Combat.luau
+│   ├── DailyRewards.luau
+│   ├── Admin.luau             # hardcoded Developer IDs + server-side command router
+│   ├── AdminRoles.luau        # DataStore-backed Admin / Streamer assignments
+│   ├── StreamerNametag.luau   # free STREAMER overhead nametag
+│   ├── AdminEvents.luau
+│   ├── AdminModeration.luau
+│   ├── Shop.luau
+│   ├── Monetization.luau
+│   ├── MapBuilder.luau
 │   └── GlobalLeaderboard.luau
 └── client/
     ├── init.client.luau
-    ├── UI.luau        # tiny declarative UI toolkit + window manager
-    ├── Hud.luau       # stat pills, TRAIN button, menu
-    ├── ShopUi.luau    # gear tab + robux tab
+    ├── UI.luau
+    ├── Hud.luau
+    ├── AdminUi.luau
+    ├── ShopUi.luau
     ├── RebirthUi.luau
-    ├── Effects.luau   # popups, toasts, sounds
-    └── ZoneGates.luau # client-side gate unlocking (server validates the bonus)
+    ├── DailyRewardUi.luau
+    ├── Effects.luau
+    └── ZoneGates.luau
 ```
 
-**Security model:** the client is only ever a *view*. It fires intent ("I punched", "buy gear 3") and renders replicated state (leaderstats + attributes). The server recomputes every multiplier, enforces the punch cooldown, checks gear order and costs, and validates zone bonuses against the character's actual position — so exploiters gain nothing by firing remotes directly.
+**Security model:** the client is only ever a *view*. It fires intent and renders replicated state. The server checks every admin permission and every gameplay action. Developer IDs are held in a server-only script. Admin and Streamer role assignments are loaded from a separate DataStore; DataStore failures fail closed and never grant a role.
 
 ## Run it locally
 
@@ -63,18 +68,38 @@ src/
 
 For live-sync development instead: `rojo plugin install` once, then `rojo serve` and connect from Studio's Rojo plugin.
 
-> DataStores and gamepasses are silently disabled in unpublished local playtests — the game detects this and runs with in-memory data.
+> DataStores require a published experience and API Services enabled for Studio tests. Studio fallback player data is temporary.
 
-## Enabling the custom admin system
+## Admin tiers and commands
 
-1. Open [AdminConfig.luau](src/shared/AdminConfig.luau).
-2. Add the experience owner's numeric Roblox UserId to `OwnerUserIds`.
-3. Add optional staff UserIds to `Staff` with one of `HeadAdmin`, `Admin`, or `Moderator`.
-4. In Roblox Studio, enable `Players.BanningEnabled` in the Players service properties if you want the ban/unban commands. Kick and the other admin features do not require this setting.
+### Tiers
 
-The admin panel is hidden from ordinary players. Every command is permission-checked by the server. Event boosts apply to the current server only, expire automatically, and do not alter saved player boost data. Audit entries are held in the server's memory and reset when that server closes.
+| Tier | Assignment | Access |
+|---|---|---|
+| Developer | Numeric UserId hardcoded in server-only `src/server/Admin.luau` | All admin features, including Power and Coins grants |
+| Admin | Stored in `AdminRoles_v1` DataStore | Player tools, moderation, events, boosts, announcements; no economy commands |
+| Streamer / Content Creator | Stored in `AdminRoles_v1` DataStore | Free overhead `STREAMER` nametag only |
 
-Commands: `help`, `players`, `event start <preset> <minutes>`, `event stop`, `boost all <training|coins|damage> <1x-5x> <minutes>`, `boost stop`, `announce <message>`, `kick <player> <reason>`, `ban <player> <minutes> <reason>`, `unban <userId>`, `givepower <player> <amount>`, `givecoins <player> <amount>`, `tp <player>`.
+The Developer allowlist currently contains UserId `10522335269` (`rajabarongz`), based on the account screenshot supplied for this setup. To add another Developer, edit `DEVELOPER_USER_IDS` in the server-only `Admin.luau`; do not put Developer IDs in replicated shared config.
+
+Only a Developer can assign or revoke DataStore-backed tiers:
+- `grantrole <numericUserId> admin`
+- `grantrole <numericUserId> streamer`
+- `revokerole <numericUserId>`
+
+Admin commands:
+- `help`, `players`
+- `event start <megagrind|coinrush|damagefrenzy|superhour> <minutes>`, `event stop`
+- `boost all <training|coins|damage> <1x-5x> <minutes>`, `boost stop`
+- `announce <message>`
+- `kick <player> <reason>`, `ban <player> <minutes> <reason>`, `unban <userId>`
+- `tp <player>`
+
+Developer-only economy commands:
+- `givepower <player> <amount>`
+- `givecoins <player> <amount>`
+
+In Roblox Studio, enable Studio Access to API Services for DataStore-backed Admin/Streamer roles. For ban/unban, enable `Players.BanningEnabled` in the Players service properties. Role assignment is persistent; players already in another server may need to rejoin before that server sees a changed role. Events apply to the current server only, expire automatically, and do not alter saved player boost data. Audit entries are held in server memory and reset when that server closes.
 
 ## Enabling monetization
 
