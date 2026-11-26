@@ -77,7 +77,7 @@ function DailyRewards.start(dataService)
 			return
 		end
 
-		local rewardKey, duration = rewardForDay(state.nextDay)
+		local rewardKey, duration = state.nextReward, state.nextDuration
 		Data.addBoost(player, rewardKey, duration)
 		Data.setDailyReward(player, os.time(), state.nextDay)
 		remotes.Notify:FireClient(player, "success", ("Day %d reward: %s for %d minutes!"):format(
